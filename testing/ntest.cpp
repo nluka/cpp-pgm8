@@ -9,9 +9,9 @@
 
 #include "ntest.hpp"
 
-template <typename PixelTy, size_t Length>
-constexpr
-size_t lengthof(PixelTy (&)[Length])
+template <typename Ty, size_t Length>
+consteval
+size_t lengthof(Ty (&)[Length])
 {
   return Length;
 }
@@ -25,8 +25,8 @@ using std::runtime_error;
 using std::fstream;
 using ntest::internal::assertion;
 
-static vector<ntest::internal::assertion> s_failed_assertions{};
-static vector<ntest::internal::assertion> s_passed_assertions{};
+static vector<assertion> s_failed_assertions{};
+static vector<assertion> s_passed_assertions{};
 static string s_output_path = ".";
 static size_t s_max_str_preview_len = 20;
 static size_t s_max_arr_preview_len = 10;
@@ -67,15 +67,15 @@ size_t ntest::internal::max_arr_preview_len()
 }
 
 void ntest::internal::emplace_failed_assertion(
-  stringstream &&ss, source_location const &loc)
+  stringstream const &ss, source_location const &loc)
 {
-  s_failed_assertions.emplace_back(ss.str(), loc);
+  s_failed_assertions.emplace_back(std::move(ss.str()), loc);
 }
 
 void ntest::internal::emplace_passed_assertion(
-  stringstream &&ss, source_location const &loc)
+  stringstream const &ss, source_location const &loc)
 {
-  s_passed_assertions.emplace_back(ss.str(), loc);
+  s_passed_assertions.emplace_back(std::move(ss.str()), loc);
 }
 
 string ntest::internal::generate_file_pathname(
@@ -97,17 +97,19 @@ void ntest::internal::throw_if_file_not_open(
   if (!file.is_open())
   {
     stringstream err{};
-    err << "failed to open file `" << pathname << "`";
+    err << "failed to open file \"" << pathname << '"';
     throw runtime_error(err.str());
   }
 }
 
 string ntest::internal::beautify_typeid_name(char const *const name)
 {
-  std::pair<std::regex, char const *> const operations[] {
-    { std::regex(" +([<>])"), "$1" },
-    { std::regex(",([^ ])"), ", $1" },
-    { std::regex(" {2,}"), " " },
+  using std::regex;
+
+  static std::pair<regex, char const *> const operations[] {
+    { regex(" +([<>])"), "$1" },
+    { regex(",([^ ])"), ", $1" },
+    { regex(" {2,}"), " " },
   };
 
   string pretty_name = name;
@@ -117,17 +119,13 @@ string ntest::internal::beautify_typeid_name(char const *const name)
   return pretty_name;
 }
 
-template <typename PixelTy>
-requires ntest::concepts::primitive<PixelTy>
-void assert_primitive(
-  PixelTy const expected, PixelTy const actual,
+template <typename Ty>
+requires std::integral<Ty>
+void assert_integral(
+  Ty const expected, Ty const actual,
   source_location const &loc)
 {
-  //              the bigger one               the smaller one
-  PixelTy const diff = std::max(expected, actual) - std::min(expected, actual);
-  // subraction order is important to avoid overflow!
-
-  bool const passed = !static_cast<bool>(diff);
+  bool const passed = actual == expected;
 
   stringstream serialized_vals{};
   serialized_vals
@@ -135,11 +133,11 @@ void assert_primitive(
     << " | " << std::to_string(expected);
 
   if (passed)
-    ntest::internal::emplace_passed_assertion(std::move(serialized_vals), loc);
+    ntest::internal::emplace_passed_assertion(serialized_vals, loc);
   else // failed
   {
     serialized_vals << " | " << std::to_string(actual);
-    ntest::internal::emplace_failed_assertion(std::move(serialized_vals), loc);
+    ntest::internal::emplace_failed_assertion(serialized_vals, loc);
   }
 }
 
@@ -147,56 +145,56 @@ void ntest::assert_int8(
   int8_t const expected, int8_t const actual,
   source_location const loc)
 {
-  assert_primitive(expected, actual, loc);
+  assert_integral(expected, actual, loc);
 }
 
 void ntest::assert_uint8(
   uint8_t const expected, uint8_t const actual,
   source_location const loc)
 {
-  assert_primitive(expected, actual, loc);
+  assert_integral(expected, actual, loc);
 }
 
 void ntest::assert_int16(
   int16_t const expected, int16_t const actual,
   source_location const loc)
 {
-  assert_primitive(expected, actual, loc);
+  assert_integral(expected, actual, loc);
 }
 
 void ntest::assert_uint16(
   uint16_t const expected, uint16_t const actual,
   source_location const loc)
 {
-  assert_primitive(expected, actual, loc);
+  assert_integral(expected, actual, loc);
 }
 
 void ntest::assert_int32(
   int32_t const expected, int32_t const actual,
   source_location const loc)
 {
-  assert_primitive(expected, actual, loc);
+  assert_integral(expected, actual, loc);
 }
 
 void ntest::assert_uint32(
   uint32_t const expected, uint32_t const actual,
   source_location const loc)
 {
-  assert_primitive(expected, actual, loc);
+  assert_integral(expected, actual, loc);
 }
 
 void ntest::assert_int64(
   int64_t const expected, int64_t const actual,
   source_location const loc)
 {
-  assert_primitive(expected, actual, loc);
+  assert_integral(expected, actual, loc);
 }
 
 void ntest::assert_uint64(
   uint64_t const expected, uint64_t const actual,
   source_location const loc)
 {
-  assert_primitive(expected, actual, loc);
+  assert_integral(expected, actual, loc);
 }
 
 static
@@ -219,16 +217,16 @@ void serialize_str_preview(
       char const ch = content[i];
       bool is_special = false;
 
-      for (auto const [special, representation] : s_special_chars)
-        if (ch == special)
+      for (auto const &pair : s_special_chars)
+        if (ch == pair.first)
         {
           is_special = true;
-          ss << '\\' << representation; // print escaped version
+          ss << '\\' << pair.second;
           break;
         }
 
       if (!is_special)
-        ss << ch; // print as is
+        ss << ch;
     }
   }
   ss << '`';
@@ -272,8 +270,7 @@ void ntest::assert_cstr(
   if (passed)
   {
     serialize_str_preview(expected, expected_len, serialized_vals);
-    internal::emplace_passed_assertion(
-      std::move(serialized_vals), loc);
+    internal::emplace_passed_assertion(serialized_vals, loc);
   }
   else // failed
   {
@@ -318,8 +315,7 @@ void ntest::assert_cstr(
       << '[' << expected_pathname << "](" << expected_pathname
       << ") | [" << actual_pathname << "](" << actual_pathname << ')';
 
-    internal::emplace_failed_assertion(
-      std::move(serialized_vals), loc);
+    internal::emplace_failed_assertion(serialized_vals, loc);
   }
 }
 
@@ -467,7 +463,7 @@ void ntest::assert_text_file(
   }
 
   if (passed)
-    internal::emplace_passed_assertion(std::move(serialized_vals), loc);
+    internal::emplace_passed_assertion(serialized_vals, loc);
   else // failed
   {
     serialized_vals << " | ";
@@ -479,7 +475,7 @@ void ntest::assert_text_file(
         << '[' << actual_pathname_generic << "]("
         << actual_pathname_generic << ')';
     }
-    internal::emplace_failed_assertion(std::move(serialized_vals), loc);
+    internal::emplace_failed_assertion(serialized_vals, loc);
   }
 }
 
@@ -549,7 +545,7 @@ void ntest::assert_binary_file(
   }
 
   if (passed)
-    internal::emplace_passed_assertion(std::move(serialized_vals), loc);
+    internal::emplace_passed_assertion(serialized_vals, loc);
   else // failed
   {
     serialized_vals << " | ";
@@ -561,7 +557,7 @@ void ntest::assert_binary_file(
         << '[' << actual_pathname_generic << "]("
         << actual_pathname_generic << ')';
     }
-    internal::emplace_failed_assertion(std::move(serialized_vals), loc);
+    internal::emplace_failed_assertion(serialized_vals, loc);
   }
 }
 
@@ -588,7 +584,7 @@ void ntest::generate_report(char const *const name)
     << "| failed | " << total_failed << " |\n"
     << "| passed | " << total_passed << " |\n\n";
 
-  auto const print_table_row = [&ofs](ntest::internal::assertion const &assertion)
+  auto const print_table_row = [&ofs](assertion const &assertion)
   {
     auto const &[serialized_vals, loc] = assertion;
     ofs
