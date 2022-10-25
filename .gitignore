@@ -1,0 +1,10 @@
+.vscode/
+testing/*.md
+testing/*.actual
+testing/*.expected
+testing/files/
+
+*.exe
+*.ilk
+*.obj
+*.pdb
