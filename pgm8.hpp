@@ -6,14 +6,7 @@
 // Module for reading and writing 8-bit PGM images.
 namespace pgm8 {
 
-struct image
-{
-  uint16_t width, height;
-  uint8_t maxval;
-  uint8_t *pixels;
-};
-
-enum class format
+enum class format : uint8_t
 {
   // Pixels stored in ASCII decimal.
   PLAIN = 2,
@@ -21,21 +14,39 @@ enum class format
   RAW = 5,
 };
 
-image read(std::ifstream &file);
+struct image_properties
+{
+public:
+  [[nodiscard]] uint16_t get_width() const noexcept;
+  [[nodiscard]] uint16_t get_height() const noexcept;
+  [[nodiscard]] uint8_t get_maxval() const noexcept;
+  [[nodiscard]] pgm8::format get_format() const noexcept;
 
-void write(
-  std::ofstream &file,
-  pgm8::image const &img,
-  pgm8::format const fmt
+  void set_width(uint16_t) noexcept;
+  void set_height(uint16_t) noexcept;
+  void set_maxval(uint8_t) noexcept;
+  void set_format(format) noexcept;
+
+  [[nodiscard]] size_t num_pixels() const noexcept;
+
+private:
+  uint16_t m_width, m_height;
+  uint8_t m_maxval;
+  format m_fmt;
+};
+
+[[nodiscard]] image_properties read_properties(std::ifstream &file);
+
+void read_pixels(
+  std::ifstream &file,
+  image_properties props,
+  uint8_t *buffer
 );
 
 void write(
   std::ofstream &file,
-  uint16_t const width,
-  uint16_t const height,
-  uint8_t const maxval,
-  uint8_t const *const pixels,
-  pgm8::format const fmt
+  image_properties props,
+  uint8_t const *pixels
 );
 
 } // namespace pgm8

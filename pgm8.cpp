@@ -2,7 +2,22 @@
 
 #include "pgm8.hpp"
 
-pgm8::image pgm8::read(std::ifstream &file)
+uint16_t pgm8::image_properties::get_width() const noexcept { return m_width; }
+uint16_t pgm8::image_properties::get_height() const noexcept { return m_height; }
+uint8_t pgm8::image_properties::get_maxval() const noexcept { return m_maxval; }
+pgm8::format pgm8::image_properties::get_format() const noexcept { return m_fmt; }
+
+void pgm8::image_properties::set_width(uint16_t const v) noexcept { m_width = v; }
+void pgm8::image_properties::set_height(uint16_t const v) noexcept { m_height = v; }
+void pgm8::image_properties::set_maxval(uint8_t const v) noexcept { m_maxval = v; }
+void pgm8::image_properties::set_format(pgm8::format const v) noexcept { m_fmt = v; }
+
+size_t pgm8::image_properties::num_pixels() const noexcept
+{
+  return static_cast<size_t>(m_width) * m_height;
+}
+
+pgm8::image_properties pgm8::read_properties(std::ifstream &file)
 {
   if (!file.is_open())
     throw std::runtime_error("pgm8::read error - `file` not open");
@@ -50,54 +65,54 @@ pgm8::image pgm8::read(std::ifstream &file)
     maxval = static_cast<uint8_t>(maxval_);
   }
 
+  image_properties props;
+  props.set_width(width);
+  props.set_height(height);
+  props.set_maxval(maxval);
+  props.set_format(fmt);
+
+  return props;
+}
+
+void pgm8::read_pixels(
+  std::ifstream &file,
+  image_properties const props,
+  uint8_t *const buffer)
+{
   // eat the \n between maxval and pixel data
   {
     char newline;
     file.read(&newline, 1);
   }
 
-  size_t const num_pixels = static_cast<size_t>(width) * height;
-  uint8_t *const pixels = new uint8_t[num_pixels];
+  size_t const num_pixels = static_cast<size_t>(props.get_width()) * props.get_height();
 
-  if (fmt == format::RAW)
+  if (props.get_format() == pgm8::format::RAW)
   {
-    file.read(reinterpret_cast<char *>(pixels), num_pixels);
+    file.read(reinterpret_cast<char *>(buffer), num_pixels);
   }
   else // format::PLAIN
   {
     char pixel[4] {};
     for (size_t i = 0; i < num_pixels; ++i) {
       file >> pixel;
-      pixels[i] = static_cast<uint8_t>(std::stoul(pixel));
+      buffer[i] = static_cast<uint8_t>(std::stoul(pixel));
     }
   }
-
-  return {
-    width,
-    height,
-    maxval,
-    pixels,
-  };
 }
 
 void pgm8::write(
   std::ofstream &file,
-  pgm8::image const &img,
-  pgm8::format const fmt)
+  image_properties const props,
+  uint8_t const *pixels)
 {
-  pgm8::write(file, img.width, img.height, img.maxval, img.pixels, fmt);
-}
+  uint16_t const width = props.get_width(), height = props.get_height();
+  uint8_t const maxval = props.get_maxval();
+  format const fmt = props.get_format();
 
-void pgm8::write(
-  std::ofstream &file,
-  uint16_t const width,
-  uint16_t const height,
-  uint8_t const maxval,
-  uint8_t const *const pixels,
-  pgm8::format const fmt)
-{
-  if (maxval < 1)
+  if (props.get_maxval() < 1)
     throw std::runtime_error("pgm8::write error - `maxval` must be > 0");
+
   if (fmt != format::PLAIN && fmt != format::RAW)
     throw std::runtime_error("pgm8::write error - bad `format`");
 
