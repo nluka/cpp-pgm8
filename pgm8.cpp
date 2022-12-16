@@ -1,4 +1,5 @@
 #include <string>
+#include <sstream>
 
 #include "pgm8.hpp"
 
@@ -7,22 +8,64 @@ uint16_t pgm8::image_properties::get_height() const noexcept { return m_height; 
 uint8_t pgm8::image_properties::get_maxval() const noexcept { return m_maxval; }
 pgm8::format pgm8::image_properties::get_format() const noexcept { return m_fmt; }
 
-void pgm8::image_properties::set_width(uint16_t const v) noexcept { m_width = v; }
-void pgm8::image_properties::set_height(uint16_t const v) noexcept { m_height = v; }
-void pgm8::image_properties::set_maxval(uint8_t const v) noexcept { m_maxval = v; }
-void pgm8::image_properties::set_format(pgm8::format const v) noexcept { m_fmt = v; }
+template <typename Ty>
+void ensure_greater_than_zero(Ty v, char const *const name)
+{
+  if (v == 0) {
+    std::stringstream err{};
+    err << name << " must be > 0";
+    throw std::runtime_error(err.str());
+  }
+}
+
+static
+void ensure_legal_format(pgm8::format const v)
+{
+  if (v != pgm8::format::PLAIN && v != pgm8::format::RAW)
+    throw std::runtime_error("illegal format, must be PLAIN (2) or RAW (5)");
+}
+
+void pgm8::image_properties::set_width(uint16_t const v)
+{
+  ensure_greater_than_zero(v, "width");
+  m_width = v;
+  m_width_set = true;
+}
+void pgm8::image_properties::set_height(uint16_t const v)
+{
+  ensure_greater_than_zero(v, "height");
+  m_height = v;
+  m_height_set = true;
+}
+void pgm8::image_properties::set_maxval(uint8_t const v)
+{
+  ensure_greater_than_zero(v, "maxval");
+  m_maxval = v;
+  m_maxval_set = true;
+}
+void pgm8::image_properties::set_format(pgm8::format const v)
+{
+  ensure_legal_format(v);
+  m_fmt = v;
+  m_fmt_set = true;
+}
 
 size_t pgm8::image_properties::num_pixels() const noexcept
 {
   return static_cast<size_t>(m_width) * m_height;
 }
 
+bool pgm8::image_properties::is_complete() const noexcept
+{
+  return m_width_set && m_height_set && m_maxval_set && m_fmt_set;
+}
+
 pgm8::image_properties pgm8::read_properties(std::ifstream &file)
 {
   if (!file.is_open())
-    throw std::runtime_error("pgm8::read error - `file` not open");
+    throw std::runtime_error("`file` not open");
   if (!file.good())
-    throw std::runtime_error("pgm8::read error - `file` not in good state");
+    throw std::runtime_error("`file` not in good state");
 
   format const fmt = [&file]()
   {
@@ -49,11 +92,8 @@ pgm8::image_properties pgm8::read_properties(std::ifstream &file)
     else if (string_starts_with(magic_num, "P2"))
       return format::PLAIN;
     else
-      throw std::runtime_error("pgm8::read error - invalid magic number");
+      throw std::runtime_error("invalid magic number, probably not a PGM file");
   }();
-
-  if (fmt != format::PLAIN && fmt != format::RAW)
-    throw std::runtime_error("pgm8::read error - bad `format`");
 
   uint16_t width, height;
   file >> width >> height;
@@ -106,15 +146,17 @@ void pgm8::write(
   image_properties const props,
   uint8_t const *pixels)
 {
+  if (!props.is_complete())
+    throw std::runtime_error("1 or more image_properties not set");
+
   uint16_t const width = props.get_width(), height = props.get_height();
   uint8_t const maxval = props.get_maxval();
   format const fmt = props.get_format();
 
-  if (props.get_maxval() < 1)
-    throw std::runtime_error("pgm8::write error - `maxval` must be > 0");
-
-  if (fmt != format::PLAIN && fmt != format::RAW)
-    throw std::runtime_error("pgm8::write error - bad `format`");
+  ensure_greater_than_zero(props.get_width(), "width");
+  ensure_greater_than_zero(props.get_height(), "height");
+  ensure_greater_than_zero(props.get_maxval(), "maxval");
+  ensure_legal_format(fmt);
 
   // header
   {

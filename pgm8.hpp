@@ -8,6 +8,7 @@ namespace pgm8 {
 
 enum class format : uint8_t
 {
+  NIL = 0,
   // Pixels stored in ASCII decimal.
   PLAIN = 2,
   // Pixels stored in binary raster.
@@ -22,17 +23,23 @@ public:
   [[nodiscard]] uint8_t get_maxval() const noexcept;
   [[nodiscard]] pgm8::format get_format() const noexcept;
 
-  void set_width(uint16_t) noexcept;
-  void set_height(uint16_t) noexcept;
-  void set_maxval(uint8_t) noexcept;
-  void set_format(format) noexcept;
+  void set_width(uint16_t);
+  void set_height(uint16_t);
+  void set_maxval(uint8_t);
+  void set_format(format);
 
   [[nodiscard]] size_t num_pixels() const noexcept;
+  [[nodiscard]] bool is_complete() const noexcept;
 
 private:
-  uint16_t m_width, m_height;
-  uint8_t m_maxval;
-  format m_fmt;
+  uint16_t m_width = 0, m_height = 0;
+  uint8_t m_maxval = 0;
+  format m_fmt = format::NIL;
+  bool
+    m_width_set = false,
+    m_height_set = false,
+    m_maxval_set = false,
+    m_fmt_set = false;
 };
 
 [[nodiscard]] image_properties read_properties(std::ifstream &file);
