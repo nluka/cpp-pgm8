@@ -55,17 +55,20 @@ size_t pgm8::image_properties::num_pixels() const noexcept
   return static_cast<size_t>(m_width) * m_height;
 }
 
-bool pgm8::image_properties::is_complete() const noexcept
+void pgm8::image_properties::validate() const
 {
-  return m_width_set && m_height_set && m_maxval_set && m_fmt_set;
+  if (!m_width_set) throw std::runtime_error("width not set");
+  if (!m_height_set) throw std::runtime_error("height not set");
+  if (!m_maxval_set) throw std::runtime_error("maxval not set");
+  if (!m_fmt_set) throw std::runtime_error("format not set");
 }
 
 pgm8::image_properties pgm8::read_properties(std::ifstream &file)
 {
   if (!file.is_open())
-    throw std::runtime_error("`file` not open");
+    throw std::runtime_error("file not open");
   if (!file.good())
-    throw std::runtime_error("`file` not in good state");
+    throw std::runtime_error("file not in good state");
 
   format const fmt = [&file]()
   {
@@ -92,7 +95,7 @@ pgm8::image_properties pgm8::read_properties(std::ifstream &file)
     else if (string_starts_with(magic_num, "P2"))
       return format::PLAIN;
     else
-      throw std::runtime_error("invalid magic number, probably not a PGM file");
+      throw std::runtime_error("invalid magic number, corrupt or non-PGM file");
   }();
 
   uint16_t width, height;
@@ -146,8 +149,7 @@ void pgm8::write(
   image_properties const props,
   uint8_t const *pixels)
 {
-  if (!props.is_complete())
-    throw std::runtime_error("1 or more image_properties not set");
+  props.validate();
 
   uint16_t const width = props.get_width(), height = props.get_height();
   uint8_t const maxval = props.get_maxval();

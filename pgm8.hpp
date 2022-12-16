@@ -29,7 +29,8 @@ public:
   void set_format(format);
 
   [[nodiscard]] size_t num_pixels() const noexcept;
-  [[nodiscard]] bool is_complete() const noexcept;
+
+  void validate() const;
 
 private:
   uint16_t m_width = 0, m_height = 0;
