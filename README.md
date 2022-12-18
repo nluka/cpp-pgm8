@@ -94,6 +94,22 @@ Example for reading a PGM file into a `std::unique_ptr`:
 }
 ```
 
+## File Format
+
+| | element | size in bytes | format | value |
+| - | - | - | - | - |
+| 1 | magic number | 2 | ASCII decimal | `P2` for plain, `P5` for raw |
+| 2 | newline | 1 | ASCII | `\n` |
+| 3 | width | 1-5 | ASCII decimal | `1-65535` |
+| 4 | whitespace | 1 | ASCII |  |
+| 5 | height | 1-5 | ASCII decimal | `1-65535` |
+| 6 | newline | 1 | ASCII | `\n` |
+| 7 | maxval | 1-3 | ASCII decimal | `1-255` |
+| 8 | newline | 1 | ASCII | `\n` |
+| 9 | pixel data | --- | [see here](http://davis.lbl.gov/Manuals/NETPBM/doc/pgm.html) | --- |
+
+\* Comments (lines starting with `#`) are not supported
+
 ## FAQ
 
 Q: Why use a special `pgm8::image_properties` object with setters instead of just passing the width, height, maxval, and format directly to `pgm8::write`? - something like:
