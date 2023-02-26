@@ -176,6 +176,52 @@ int main()
       write_and_read_back_raw_test("diag-grad", {props, pixels});
     }
 
+    // double digit maxval
+    {
+      uint16_t const width = 5, height = 5;
+      uint8_t pixels[width * height] {
+        0,  0,  0,   0,   0,
+        0,  25, 25,  25,  25,
+        0,  0,  25,  25,  25,
+        0,  0,  0,   25,  25,
+        0,  0,  0,   0,   25,
+      };
+
+      pgm8::image_properties props;
+      props.set_width(width);
+      props.set_height(height);
+      props.set_maxval(25);
+
+      props.set_format(pgm8::format::PLAIN);
+      write_and_read_back_plain_test("double-digit-maxval", {props, pixels});
+
+      props.set_format(pgm8::format::RAW);
+      write_and_read_back_raw_test("double-digit-maxval", {props, pixels});
+    }
+
+    // triple digit maxval
+    {
+      uint16_t const width = 5, height = 5;
+      uint8_t pixels[width * height] {
+        0,    0,    0,    0,    0,
+        0,    255,  255,  255,  255,
+        0,    0,    255,  255,  255,
+        0,    0,    0,    255,  255,
+        0,    0,    0,    0,    255,
+      };
+
+      pgm8::image_properties props;
+      props.set_width(width);
+      props.set_height(height);
+      props.set_maxval(255);
+
+      props.set_format(pgm8::format::PLAIN);
+      write_and_read_back_plain_test("triple-digit-maxval", {props, pixels});
+
+      props.set_format(pgm8::format::RAW);
+      write_and_read_back_raw_test("triple-digit-maxval", {props, pixels});
+    }
+
     ntest::generate_report("pgm8");
   }
   catch (std::runtime_error const &err)
