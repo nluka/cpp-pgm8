@@ -4,7 +4,7 @@ A small library for reading and writing 8-bit grayscale PGM image files in C++.
 
 ## Using
 
-This is a source-based library, so copy [pgm8.cpp](/pgm8.cpp) and [pgm8.hpp](/pgm8.hpp) into your project and `#include <pgm8.hpp>` where you need it. That's it.
+This is a source-based library, so copy [pgm8.cpp](/pgm8.cpp) and [pgm8.hpp](/pgm8.hpp) into your project and `#include "pgm8.hpp"` where you need it. That's it.
 
 ## Examples
 
