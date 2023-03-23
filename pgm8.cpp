@@ -1,5 +1,7 @@
 #include <string>
 #include <sstream>
+#include <cassert>
+#include <cstring>
 
 #include "pgm8.hpp"
 
@@ -108,6 +110,12 @@ pgm8::image_properties pgm8::read_properties(std::ifstream &file)
     maxval = static_cast<uint8_t>(maxval_);
   }
 
+  // eat the \n after maxval
+  {
+    char whitespace[1];
+    file.read(whitespace, sizeof(whitespace));
+  }
+
   image_properties props;
   props.set_width(width);
   props.set_height(height);
@@ -122,12 +130,6 @@ void pgm8::read_pixels(
   image_properties const props,
   uint8_t *const buffer)
 {
-  // eat the \n between maxval and pixel data
-  {
-    char newline;
-    file.read(&newline, 1);
-  }
-
   size_t const num_pixels = static_cast<size_t>(props.get_width()) * props.get_height();
 
   if (props.get_format() == pgm8::format::RAW)
@@ -147,6 +149,7 @@ void pgm8::read_pixels(
 void pgm8::write(
   std::ofstream &file,
   image_properties const props,
+  std::vector<std::string> const &comments,
   uint8_t const *pixels)
 {
   props.validate();
@@ -169,6 +172,10 @@ void pgm8::write(
       << std::to_string(maxval) << '\n';
   }
 
+  // comments
+  for (auto const &cmt : comments)
+    file << '#' << cmt << '\n';
+
   // pixels
   if (fmt == format::RAW)
   {
@@ -184,4 +191,36 @@ void pgm8::write(
       file << '\n';
     }
   }
+}
+
+std::vector<std::string> pgm8::read_comments(std::ifstream &file)
+{
+  std::vector<std::string> comments{};
+  std::string line{};
+
+  int ch = file.peek();
+  while (ch == '#') {
+    int const comment_char = file.get(); // eat #
+    assert(comment_char == '#');
+    std::getline(file, line, '\n');
+    comments.emplace_back(std::move(line));
+    ch = file.peek();
+  }
+
+  return comments;
+}
+
+size_t pgm8::skip_comments(std::ifstream &file)
+{
+  std::string line{};
+  size_t count = 0;
+
+  int ch = file.peek();
+  while (ch == '#') {
+    std::getline(file, line, '\n');
+    ++count;
+    ch = file.peek();
+  }
+
+  return count;
 }

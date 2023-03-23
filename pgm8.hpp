@@ -2,6 +2,8 @@
 #define NLUKA_PGM8_HPP
 
 #include <fstream>
+#include <vector>
+#include <string>
 
 // Module for reading and writing 8-bit PGM images.
 namespace pgm8 {
@@ -45,6 +47,10 @@ private:
 
 [[nodiscard]] image_properties read_properties(std::ifstream &file);
 
+[[nodiscard]] std::vector<std::string> read_comments(std::ifstream &file);
+
+size_t skip_comments(std::ifstream &file);
+
 void read_pixels(
   std::ifstream &file,
   image_properties props,
@@ -54,6 +60,7 @@ void read_pixels(
 void write(
   std::ofstream &file,
   image_properties props,
+  std::vector<std::string> const &comments,
   uint8_t const *pixels
 );
 

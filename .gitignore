@@ -1,5 +1,4 @@
 .vscode/
-testing/*.md
 testing/*.actual
 testing/*.expected
 testing/files/
@@ -8,3 +7,4 @@ testing/files/
 *.ilk
 *.obj
 *.pdb
+*.elf

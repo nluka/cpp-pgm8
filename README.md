@@ -29,19 +29,28 @@ Example for writing a PGM file from a `std::vector`:
 
   pgm8::image_properties img_props;
 
-  try {
+  try
+  {
     // setters do validation and throw if bad values are set:
-    img_props.set_width(2); // std::runtime_error if width = 0
-    img_props.set_height(2); // std::runtime_error if height = 0
-    img_props.set_maxval(4); // std::runtime_error if maxval = 0
+    img_props.set_width(2); // std::runtime_error if width == 0
+    img_props.set_height(2); // std::runtime_error if height == 0
+    img_props.set_maxval(4); // std::runtime_error if maxval == 0
     img_props.set_format(pgm8::format::PLAIN); // std::runtime_error if invalid format
-  } catch (std::runtime_error const &err) {
+  }
+  catch (std::runtime_error const &err)
+  {
     std::cerr << "pgm8::image_properties failure - " << err.what() << '\n';
     std::exit(1);
   }
 
-  try {
-    pgm8::write(file, img_props, pixels.data());
+  std::vector<std::string> comments {
+    "comment 1",
+    "comment 2",
+  };
+
+  try
+  {
+    pgm8::write(file, img_props, comments, pixels.data());
     // std::runtime_error if one of
     //  - width
     //  - height
@@ -50,8 +59,10 @@ Example for writing a PGM file from a `std::vector`:
     // was not explicitly set in `img_props`
     // OR if `file` is closed or in bad state
     // OR if a write to `file` fails
-  } catch (std::runtime_error const &err) {
-    std::cerr << "ERROR: pgm8::write failed - " << err.what() << '\n';
+  }
+  catch (std::exception const &err)
+  {
+    std::cerr << "pgm8::write failure - " << err.what() << '\n';
     std::exit(1);
   }
 }
@@ -66,10 +77,31 @@ Example for reading a PGM file into a `std::unique_ptr`:
   // first, query the image dimensions to figure out
   // how much space to allocate for pixels:
   pgm8::image_properties img_props;
-  try {
+  try
+  {
     img_props = pgm8::read_properties(file);
-  } catch (std::runtime_error const &err) {
+  }
+  catch (std::exception const &err)
+  {
     std::cerr << "pgm8::read_properties failed - " << err.what() << '\n';
+    std::exit(1);
+  }
+
+  try
+  {
+    if (/* read comments */)
+    {
+      std::vector<std::string> comments = pgm8::read_comments(file);
+      // Note: when reading comments, the # character is skipped for you
+    }
+    else // skip comments
+    {
+      size_t num_comments_skipped = pgm8::skip_comments(file);
+    }
+  }
+  catch (std::exception const &err)
+  {
+    std::cerr << "pgm8::(read|skip)_comments failed - " << err.what() << '\n';
     std::exit(1);
   }
 
@@ -78,18 +110,22 @@ Example for reading a PGM file into a `std::unique_ptr`:
   // (not bothering to handle an allocation failure)
 
   // read pixels from file into buffer:
-  try {
+  try
+  {
     pgm8::read_pixels(file, img_props, pixels.get());
-  } catch (std::runtime_error const &err) {
+  }
+  catch (std::runtime_error const &err)
+  {
     std::cerr << "pgm8::read_pixels failed - " << err.what() << '\n';
     std::exit(1);
   }
 
-  // query width, height, maxval:
+  // query width, height, maxval, pixel count:
   std::cout
     << "width = " << img_props.get_width() << '\n'
     << "height = " << img_props.get_height() << '\n'
     << "maxval = " << img_props.get_maxval() << '\n'
+    << "pixel count = " << img_props.num_pixels() << '\n'
   ;
 }
 ```
@@ -98,17 +134,16 @@ Example for reading a PGM file into a `std::unique_ptr`:
 
 | | element | size in bytes | format | value |
 | - | - | - | - | - |
-| 1 | magic number | 2 | ASCII decimal | `P2` for plain, `P5` for raw |
-| 2 | newline | 1 | ASCII | `\n` |
-| 3 | width | 1-5 | ASCII decimal | `1-65535` |
-| 4 | whitespace | 1 | ASCII |  |
-| 5 | height | 1-5 | ASCII decimal | `1-65535` |
-| 6 | newline | 1 | ASCII | `\n` |
-| 7 | maxval | 1-3 | ASCII decimal | `1-255` |
-| 8 | newline | 1 | ASCII | `\n` |
-| 9 | pixel data | --- | [see here](http://davis.lbl.gov/Manuals/NETPBM/doc/pgm.html) | --- |
-
-\* Comments (lines starting with `#`) are not supported
+| 1  | magic number | 2 | ASCII decimal | `P2` for plain, `P5` for raw |
+| 2  | newline | 1 | ASCII | `\n` |
+| 3  | width | 1-5 | ASCII decimal | `1-65535` |
+| 4  | whitespace | 1 | ASCII |  |
+| 5  | height | 1-5 | ASCII decimal | `1-65535` |
+| 6  | newline | 1 | ASCII | `\n` |
+| 7  | maxval | 1-3 | ASCII decimal | `1-255` |
+| 8  | newline | 1 | ASCII | `\n` |
+| 9  | comments | --- | ASCII | 0 or more of `#[content]\n` |
+| 10 | pixel data | --- | [see here](http://davis.lbl.gov/Manuals/NETPBM/doc/pgm.html) | --- |
 
 ## FAQ
 
